@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  helloworldk8:
+    image: k8registry14522.azurecr.io/helloworldk8
+    build:
+      context: .
+      dockerfile: HelloWorldK8/Dockerfile

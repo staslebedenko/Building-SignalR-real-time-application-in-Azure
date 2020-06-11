@@ -1,0 +1,36 @@
+﻿subscriptionID=$(az account list --query "[?contains(name,'Microsoft')].[id]" -o tsv)
+echo "Test subscription ID is = " $subscriptionID
+az account set --subscription $subscriptionID
+az account show
+
+location=northeurope
+postfix=$RANDOM
+
+groupName=k8s-cluster$postfix
+clusterName=k8s-cluster$postfix
+registryName=k8Registry$postfix
+registryName=k8Registry$postfix
+
+az group create --name $groupName --location $location 
+az acr create --resource-group $groupName --name $registryName --sku Standard
+az feature register --name AKS-IngressApplicationGatewayAddon --namespace microsoft.containerservice
+az feature list -o table --query "[?contains(name, 'Microsoft.ContainerService/AKS-IngressApplicationGatewayAddon')].{Name:name,State:properties.state}"
+az provider register --namespace Microsoft.ContainerService
+az extension add --name aks-preview
+az extension list
+
+gatewayName=k8Registry$postfix
+
+az aks create --resource-group $groupName --name $clusterName --node-count 2 \
+--generate-ssh-keys --enable-addons monitoring --network-plugin azure \
+--enable-managed-identity -a ingress-appgw --appgw-name $gatewayName \
+--appgw-subnet-prefix "10.2.0.0/16"
+
+
+az acr login --name k8Registry14522
+
+az aks get-credentials --resource-group $groupName --name $clusterName
+
+
+#docker push k8registry14522.azurecr.io/helloworldk8
+#docker images

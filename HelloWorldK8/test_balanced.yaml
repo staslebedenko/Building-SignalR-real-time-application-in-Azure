@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: websocket-server
+spec:
+  selector:
+    matchLabels:
+      app: ws-app
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: ws-app
+    spec:
+      containers:
+        - name: websocket-app
+          imagePullPolicy: Always
+          image: your-container-repo.azurecr.io/websockets-app
+          ports:
+            - containerPort: 8888
+      imagePullSecrets:
+        - name: azure-container-registry-credentials
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: websocket-app-service
+spec:
+  selector:
+    app: ws-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8888
+
+---
+
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: websocket-repeater
+  annotations:
+    kubernetes.io/ingress.class: azure/application-gateway
+spec:
+  rules:
+    - host: ws.contoso.com
+      http:
+        paths:
+          - backend:
+              serviceName: websocket-app-service
+              servicePort: 80
