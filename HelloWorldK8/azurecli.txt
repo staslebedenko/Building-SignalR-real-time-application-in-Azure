@@ -7,9 +7,10 @@ location=northeurope
 postfix=$RANDOM
 
 groupName=k8s-cluster$postfix
+nodesGroupName=k8s-cluster-nodes$postfix
 clusterName=k8s-cluster$postfix
 registryName=k8Registry$postfix
-registryName=k8Registry$postfix
+gatewayName=k8Gateway$postfix
 
 az group create --name $groupName --location $location 
 az acr create --resource-group $groupName --name $registryName --sku Standard
@@ -17,19 +18,66 @@ az feature register --name AKS-IngressApplicationGatewayAddon --namespace micros
 az feature list -o table --query "[?contains(name, 'Microsoft.ContainerService/AKS-IngressApplicationGatewayAddon')].{Name:name,State:properties.state}"
 az provider register --namespace Microsoft.ContainerService
 az extension add --name aks-preview
-az extension list
-
-gatewayName=k8Registry$postfix
 
 az aks create --resource-group $groupName --name $clusterName --node-count 2 \
 --generate-ssh-keys --enable-addons monitoring --network-plugin azure \
 --enable-managed-identity -a ingress-appgw --appgw-name $gatewayName \
---appgw-subnet-prefix "10.2.0.0/16"
+--appgw-subnet-prefix "10.2.0.0/16" --node-resource-group $nodesGroupName
 
+az aks update --resource-group $groupName --name $clusterName \
+--attach-acr $registryName
+
+location=northeurope
+serverName=${groupName,,}
+adminLogin=Admin$groupName
+password=D3morStr0ng$groupName$postfix
+databaseName=${groupName,,}
+catalogCollation="SQL_Latin1_General_CP1_CI_AS" 
+
+az sql server create --name $serverName --resource-group $groupName --assign-identity \
+--location $location --admin-user $adminLogin --admin-password $password
+
+az sql db create --resource-group $groupName --server $serverName --name $databaseName \
+--edition GeneralPurpose --family Gen5 --compute-model Serverless \
+--auto-pause-delay 60 --capacity 4
+
+aksIp=$(az network public-ip list --resource-group $nodesGroupName --query [0].ipAddress --output tsv)
+
+az sql server firewall-rule create --resource-group $groupName --server $serverName \
+--name "KubernetesCluster" --start-ip-address $aksIp --end-ip-address $aksIp
+
+sqlClientType=ado.net
+
+#TODO add Admin login and remove password, set to variable.
+sqlConString=$(az sql db show-connection-string --name $databaseName --server $serverName --client $sqlClientType --o tsv)
+sqlConString=${sqlConString/Password=<password>;}
+sqlConString=${sqlConString/<username>/$adminLogin}
+
+echo "SQL Connection string is = " $sqlConString
+echo "account Name  = " $registryName
+echo "gateway Name  = " $gatewayName
+
+
+az login
+az account set --subscription 03766965-5bbd-4a7e-ab84-5408df02c6d6
+az account show
 
 az acr login --name k8Registry14522
+az acr repository list --name <registry-name> --output table
+az acr repository show-tags --name <registry-name> --repository hello-world --output table
+
+docker pull hello-world
+docker tag hello-world <login-server>/hello-world:v1
+docker push <login-server>/hello-world:v1
+docker rmi <login-server>/hello-world:v1
 
 az aks get-credentials --resource-group $groupName --name $clusterName
+kubectl get nodes
+
+#TODO add Azure CLI for SQL Serverless database
+#TODO add integration of K8S with Azure container registry
+#TODO deploy container to ACR and then to Azure Kubernates service.
+#TODO Deploy sample YAML file and test 
 
 
 #docker push k8registry14522.azurecr.io/helloworldk8
