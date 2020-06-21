@@ -1,9 +1,10 @@
 ﻿subscriptionID=$(az account list --query "[?contains(name,'Microsoft')].[id]" -o tsv)
 echo "Test subscription ID is = " $subscriptionID
-az account set --subscription $subscriptionID
+
+az account set --subscription 0c4eb597-6672-424b-8cda-231e22534857
 az account show
 
-location=northeurope
+location=eastus2
 postfix=$RANDOM
 
 groupName=k8s-cluster$postfix
@@ -12,11 +13,15 @@ clusterName=k8s-cluster$postfix
 registryName=k8Registry$postfix
 gatewayName=k8Gateway$postfix
 
+
+
 az group create --name $groupName --location $location 
 az acr create --resource-group $groupName --name $registryName --sku Standard
 az feature register --name AKS-IngressApplicationGatewayAddon --namespace microsoft.containerservice
 az feature list -o table --query "[?contains(name, 'Microsoft.ContainerService/AKS-IngressApplicationGatewayAddon')].{Name:name,State:properties.state}"
 az provider register --namespace Microsoft.ContainerService
+az extension add --name aks-preview
+
 az extension add --name aks-preview
 
 az aks create --resource-group $groupName --name $clusterName --node-count 2 \
@@ -28,10 +33,10 @@ az aks update --resource-group $groupName --name $clusterName \
 --attach-acr $registryName
 
 location=northeurope
-serverName=${groupName,,}
+serverName=server-${groupName,,}
 adminLogin=Admin$groupName
-password=D3morStr0ng$groupName$postfix
-databaseName=${groupName,,}
+password=D##morStr0ng#$postfix
+databaseName=database-${groupName,,}
 catalogCollation="SQL_Latin1_General_CP1_CI_AS" 
 
 az sql server create --name $serverName --resource-group $groupName --assign-identity \
@@ -49,7 +54,7 @@ az sql server firewall-rule create --resource-group $groupName --server $serverN
 sqlClientType=ado.net
 
 #TODO add Admin login and remove password, set to variable.
-sqlConString=$(az sql db show-connection-string --name $databaseName --server $serverName --client $sqlClientType --o tsv)
+sqlConString=$(az sql db show-connection-string --name $databaseName --server $serverName --client $sqlClientType --output tsv)
 sqlConString=${sqlConString/Password=<password>;}
 sqlConString=${sqlConString/<username>/$adminLogin}
 
