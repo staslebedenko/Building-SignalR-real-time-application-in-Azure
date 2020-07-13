@@ -7,48 +7,50 @@ az account show
 location=eastus2
 postfix=$RANDOM
 
-groupName=k8s-cluster$postfix
+groupName=k8s-cluster-$postfix
 nodesGroupName=k8s-cluster-nodes$postfix
 clusterName=k8s-cluster$postfix
 registryName=k8Registry$postfix
 gatewayName=k8Gateway$postfix
 
 
-
 az group create --name $groupName --location $location 
-az acr create --resource-group $groupName --name $registryName --sku Standard
+
 az feature register --name AKS-IngressApplicationGatewayAddon --namespace microsoft.containerservice
 az feature list -o table --query "[?contains(name, 'Microsoft.ContainerService/AKS-IngressApplicationGatewayAddon')].{Name:name,State:properties.state}"
 az provider register --namespace Microsoft.ContainerService
 az extension add --name aks-preview
 
-az extension add --name aks-preview
+az acr create --resource-group $groupName --name $registryName --sku Standard --identity
 
 az aks create --resource-group $groupName --name $clusterName --node-count 2 \
 --generate-ssh-keys --enable-addons monitoring --network-plugin azure \
 --enable-managed-identity -a ingress-appgw --appgw-name $gatewayName \
---appgw-subnet-prefix "10.2.0.0/16" --node-resource-group $nodesGroupName
-
-az aks update --resource-group $groupName --name $clusterName \
+--appgw-subnet-prefix "10.2.0.0/16" --node-resource-group $nodesGroupName \
 --attach-acr $registryName
 
-location=northeurope
+--az aks update --resource-group $groupName --name $clusterName --attach-acr $registryName
+
+location=eastus2
+dbGroupName=k8s-cluster-db-$postfix
 serverName=server-${groupName,,}
 adminLogin=Admin$groupName
-password=D##morStr0ng#$postfix
+password=2020T3morStr0ng#432
 databaseName=database-${groupName,,}
 catalogCollation="SQL_Latin1_General_CP1_CI_AS" 
 
-az sql server create --name $serverName --resource-group $groupName --assign-identity \
+az group create --name $dbGroupName --location $location
+
+az sql server create --name $serverName --resource-group $dbGroupName --assign-identity \
 --location $location --admin-user $adminLogin --admin-password $password
 
-az sql db create --resource-group $groupName --server $serverName --name $databaseName \
+az sql db create --resource-group $dbGroupName --server $serverName --name $databaseName \
 --edition GeneralPurpose --family Gen5 --compute-model Serverless \
 --auto-pause-delay 60 --capacity 4
 
 aksIp=$(az network public-ip list --resource-group $nodesGroupName --query [0].ipAddress --output tsv)
 
-az sql server firewall-rule create --resource-group $groupName --server $serverName \
+az sql server firewall-rule create --resource-group $dbGroupName --server $serverName \
 --name "KubernetesCluster" --start-ip-address $aksIp --end-ip-address $aksIp
 
 sqlClientType=ado.net
@@ -61,6 +63,32 @@ sqlConString=${sqlConString/<username>/$adminLogin}
 echo "SQL Connection string is = " $sqlConString
 echo "account Name  = " $registryName
 echo "gateway Name  = " $gatewayName
+
+
+groupName=k8s-cluster-$postfix
+nodesGroupName=k8s-cluster-nodes$postfix
+clusterName=k8s-cluster$postfix
+registryName=k8Registry$postfix
+
+kubeletId=$(az aks show --resource-group $groupName --name $clusterName --query identityProfile.kubeletidentity.clientId -o tsv)
+registryId=$(az acr show --resource-group $groupName --name $registryName --query id --output tsv)
+az role assignment create --assignee $KUBELET_IDENTITY_ID --scope $ACR_ID --role acrpull
+
+postfix=30307
+groupName=k8s-cluster-$postfix
+nodesGroupName=k8s-cluster-nodes$postfix
+clusterName=k8s-cluster$postfix
+registryName=k8Registry$postfix
+az aks update --resource-group $groupName --name $clusterName --attach-acr $registryName
+
+groupName=k8s-cluster-30307
+nodesGroupName=k8s-cluster-nodes30307
+clusterName=k8s-cluster30307
+registryName=k8Registry30307
+
+#kubeletId=$(az aks show --resource-group $groupName --name $clusterName --query identityProfile.kubeletidentity.clientId -o tsv)
+#registryId=$(az acr show --resource-group $groupName --name $registryName --query id --output tsv)
+#az role assignment create --assignee $kubeletId --scope $registryId --role acrpull
 
 
 az login
