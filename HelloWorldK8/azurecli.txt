@@ -7,11 +7,11 @@ az account show
 location=eastus2
 postfix=$RANDOM
 
-groupName=k8s-cluster-$postfix
-nodesGroupName=k8s-cluster-nodes$postfix
-clusterName=k8s-cluster$postfix
-registryName=k8Registry$postfix
-gatewayName=k8Gateway$postfix
+groupName=rt-k8-cluster-$postfix
+nodesGroupName=rt-k8-cluster-nodes$postfix
+clusterName=rt-k8-cluster$postfix
+registryName=rtk8registry$postfix
+gatewayName=rtk8Gateway$postfix
 
 
 az group create --name $groupName --location $location 
@@ -32,10 +32,10 @@ az aks create --resource-group $groupName --name $clusterName --node-count 2 \
 --az aks update --resource-group $groupName --name $clusterName --attach-acr $registryName
 
 location=eastus2
-dbGroupName=k8s-cluster-db-$postfix
+dbGroupName=rt-k8-cluster-db-$postfix
 serverName=server-${groupName,,}
 adminLogin=Admin$groupName
-password=2020T3morStr0ng#432
+password=2020Tfesefse#432
 databaseName=database-${groupName,,}
 catalogCollation="SQL_Latin1_General_CP1_CI_AS" 
 
@@ -65,10 +65,10 @@ echo "account Name  = " $registryName
 echo "gateway Name  = " $gatewayName
 
 
-groupName=k8s-cluster-$postfix
-nodesGroupName=k8s-cluster-nodes$postfix
-clusterName=k8s-cluster$postfix
-registryName=k8Registry$postfix
+groupName=rt-k8-cluster-$postfix
+nodesGroupName=rt-k8-cluster-nodes$postfix
+clusterName=rt-k8-cluster$postfix
+registryName=rtk8Registry$postfix
 
 kubeletId=$(az aks show --resource-group $groupName --name $clusterName --query identityProfile.kubeletidentity.clientId -o tsv)
 registryId=$(az acr show --resource-group $groupName --name $registryName --query id --output tsv)
@@ -81,10 +81,10 @@ clusterName=k8s-cluster$postfix
 registryName=k8Registry$postfix
 az aks update --resource-group $groupName --name $clusterName --attach-acr $registryName
 
-groupName=k8s-cluster-30307
-nodesGroupName=k8s-cluster-nodes30307
-clusterName=k8s-cluster30307
-registryName=k8Registry30307
+groupName=rt-k8-cluster-30307
+nodesGroupName=rt-k8-cluster-nodes30307
+clusterName=rt-k8-cluster30307
+registryName=rtk8Registry30307
 
 #kubeletId=$(az aks show --resource-group $groupName --name $clusterName --query identityProfile.kubeletidentity.clientId -o tsv)
 #registryId=$(az acr show --resource-group $groupName --name $registryName --query id --output tsv)
@@ -106,11 +106,6 @@ docker rmi <login-server>/hello-world:v1
 
 az aks get-credentials --resource-group $groupName --name $clusterName
 kubectl get nodes
-
-#TODO add Azure CLI for SQL Serverless database
-#TODO add integration of K8S with Azure container registry
-#TODO deploy container to ACR and then to Azure Kubernates service.
-#TODO Deploy sample YAML file and test 
 
 
 #docker push k8registry14522.azurecr.io/helloworldk8
